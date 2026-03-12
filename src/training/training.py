@@ -22,7 +22,6 @@ def parse_args():
     parser.add_argument("--batch_size",     type=int,   default=1,      help="Batch size for training")
     parser.add_argument("--learning_rate",  type=float, default=1e-4,   help="Initial learning rate")
     parser.add_argument("--epochs",         type=int,   default=50,     help="Number of training epochs")
-    parser.add_argument("--patience",       type=int,   default=5,      help="Early stopping patience")
     parser.add_argument("--max_norm",       type=float, default=5.0,    help="Max gradient norm for clipping")
 
     # Dataset
@@ -34,6 +33,7 @@ def parse_args():
     # Scheduler (ReduceLROnPlateau)
     parser.add_argument("--scheduler_factor",  type=float, default=0.5, help="ReduceLROnPlateau: LR decay factor")
     parser.add_argument("--scheduler_min_lr",  type=float, default=1e-6, help="ReduceLROnPlateau: minimum LR")
+    parser.add_argument("--patience",       type=int,   default=3)
 
     # Checkpoint
     parser.add_argument("--save_path", type=str, default=r"models\finetuned\convtasnet_best.pth", help="Path to save best model")
