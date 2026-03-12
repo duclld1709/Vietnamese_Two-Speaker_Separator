@@ -209,6 +209,15 @@ def main():
         if val_loss < best_val_loss:
             best_val_loss = val_loss
             torch.save(model.state_dict(), args.save_path)
+            
+            # Log best model.pt
+            artifact = wandb.Artifact(
+                "convtasnet-vivosmix",
+                type="model",
+                metadata={"epoch": epoch, "val_loss": val_loss}
+            )
+            artifact.add_file(args.save_path)
+            wandb.log_artifact(artifact)
             tqdm.write(f"  ✔ Epoch {epoch}: new best val_loss={best_val_loss:.4f} — model saved to '{args.save_path}'")
         else:
             tqdm.write(f"  Epoch {epoch}: val_loss={val_loss:.4f}  (no improvement)")
