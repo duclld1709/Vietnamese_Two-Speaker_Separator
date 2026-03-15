@@ -24,6 +24,7 @@ def parse_args():
     parser.add_argument("--epochs",         type=int,   default=50,     help="Number of training epochs")
     parser.add_argument("--max_norm",       type=float, default=5.0,    help="Max gradient norm for clipping")
     parser.add_argument("--freeze_encoder", action="store_true",        help="Freeze ConvTasNet encoder during fine-tuning")
+    parser.add_argument("--dropout", type=float, default=0.0,           help="Dropout probability applied to Conv1d/Linear layers in separator")
 
     # Dataset
     parser.add_argument("--data_root", type=str,
@@ -116,6 +117,33 @@ def evaluate(model, loader, device, epoch, total_epochs):
 
 
 # ==========================================
+# Dropout Hooks
+# ==========================================
+
+def register_dropout_hooks(module, p: float):
+    """
+    Inject dropout sau output của mỗi Conv1d/Linear trong module.
+    Chỉ active khi model.training = True (tự động tắt lúc eval).
+    Trả về list hooks để có thể remove sau nếu cần.
+    """
+    hooks = []
+
+    def make_hook(dropout_layer):
+        def hook(mod, inp, output):
+            return dropout_layer(output)
+        return hook
+
+    for name, mod in module.named_modules():
+        if isinstance(mod, (torch.nn.Conv1d, torch.nn.Linear)):
+            dropout_layer = torch.nn.Dropout(p=p)
+            h = mod.register_forward_hook(make_hook(dropout_layer))
+            hooks.append(h)
+
+    print(f"  Registered dropout (p={p}) on {len(hooks)} Conv1d/Linear layers in separator")
+    return hooks
+
+
+# ==========================================
 # Main
 # ==========================================
 def main():
@@ -146,11 +174,17 @@ def main():
         for param in model.encoder.parameters():
             param.requires_grad = False
 
-    def count_parameters(module):
-        return sum(p.numel() for p in module.parameters())
+    # ── Dropout hooks ──────────────────────
+    dropout_hooks = []
+    if args.dropout > 0.0:
+        print(f"\nInjecting dropout (p={args.dropout}) into mask_generator...")
+        dropout_hooks = register_dropout_hooks(model.mask_generator, p=args.dropout)
     
-    def count_trainable_parameters(module):
-        return sum(p.numel() for p in module.parameters() if p.requires_grad)
+        def count_parameters(module):
+            return sum(p.numel() for p in module.parameters())
+        
+        def count_trainable_parameters(module):
+            return sum(p.numel() for p in module.parameters() if p.requires_grad)
     
     
     print("\n===== Model Parameter Summary =====")
