@@ -23,6 +23,7 @@ def parse_args():
     parser.add_argument("--learning_rate",  type=float, default=1e-4,   help="Initial learning rate")
     parser.add_argument("--epochs",         type=int,   default=50,     help="Number of training epochs")
     parser.add_argument("--max_norm",       type=float, default=5.0,    help="Max gradient norm for clipping")
+    parser.add_argument("--freeze_encoder", action="store_true",        help="Freeze ConvTasNet encoder during fine-tuning")
 
     # Dataset
     parser.add_argument("--data_root", type=str,
@@ -140,6 +141,31 @@ def main():
     sample_rate = bundle.sample_rate          # 8 000 Hz
     print(f"Sample rate: {sample_rate} Hz")
 
+    if args.freeze_encoder:
+        print("Freezing encoder...")
+        for param in model.encoder.parameters():
+            param.requires_grad = False
+
+    def count_parameters(module):
+        return sum(p.numel() for p in module.parameters())
+    
+    def count_trainable_parameters(module):
+        return sum(p.numel() for p in module.parameters() if p.requires_grad)
+    
+    
+    print("\n===== Model Parameter Summary =====")
+    
+    encoder_params = count_parameters(model.encoder)
+    separator_params = count_parameters(model.separator)
+    decoder_params = count_parameters(model.decoder)
+    
+    print(f"Encoder params   : {encoder_params:,}")
+    print(f"Separator params : {separator_params:,}")
+    print(f"Decoder params   : {decoder_params:,}")
+    
+    total_params = encoder_params + separator_params + decoder_params
+    print(f"Total params     : {total_params:,}")
+
     # ── Datasets & Loaders ─────────────────
     train_dataset = VIVOSMIX(root=args.data_root, subset="train")
     test_dataset  = VIVOSMIX(root=args.data_root, subset="test")
@@ -160,7 +186,10 @@ def main():
     )
 
     # ── Optimizer + Scheduler ──────────────
-    optimizer = torch.optim.Adam(model.parameters(), lr=args.learning_rate)
+    optimizer = torch.optim.Adam(
+        filter(lambda p: p.requires_grad, model.parameters()),
+        lr=args.learning_rate
+    )
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
         optimizer,
         mode="min",
