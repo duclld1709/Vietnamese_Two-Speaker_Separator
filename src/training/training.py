@@ -169,16 +169,22 @@ def main():
     sample_rate = bundle.sample_rate          # 8 000 Hz
     print(f"Sample rate: {sample_rate} Hz")
 
+    if torch.cuda.device_count() > 1:
+        print(f"Using {torch.cuda.device_count()} GPUs with DataParallel")
+        model = torch.nn.DataParallel(model)
+
     if args.freeze_encoder:
         print("Freezing encoder...")
-        for param in model.encoder.parameters():
+        base_model = model.module if isinstance(model, torch.nn.DataParallel) else model
+        for param in base_model.encoder.parameters():
             param.requires_grad = False
 
     # ── Dropout hooks ──────────────────────
-    dropout_hooks = []
+    dropout_hooks = []   
     if args.dropout > 0.0:
         print(f"\nInjecting dropout (p={args.dropout}) into mask_generator...")
-        dropout_hooks = register_dropout_hooks(model.mask_generator, p=args.dropout)
+        base_model = model.module if isinstance(model, torch.nn.DataParallel) else model
+        dropout_hooks = register_dropout_hooks(base_model.mask_generator, p=args.dropout)
     
     def count_parameters(module):
         return sum(p.numel() for p in module.parameters())
@@ -271,7 +277,8 @@ def main():
         # ── Checkpoint ─────────────────────
         if val_loss < best_val_loss:
             best_val_loss = val_loss
-            torch.save(model.state_dict(), args.save_path)
+            state_to_save = model.module.state_dict() if isinstance(model, torch.nn.DataParallel) else model.state_dict()
+            torch.save(state_to_save, args.save_path)
             
             # Log best model.pt
             artifact = wandb.Artifact(
