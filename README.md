@@ -93,6 +93,20 @@ python src/training/training.py --data_root data/datasets --wandb_disabled
 
 The best model checkpoint will be saved to `models/finetuned/convtasnet_best.pth`.
 
+## Demo (Gradio)
+
+Run the speech separation demo UI with Gradio:
+
+```bash
+pip install gradio soundfile librosa
+python src/demo/demo.py
+```
+
+Notes:
+* The demo uses checkpoints in `src/demo/checkpoints/convtasnet/convtasnet_best.pth` and `src/demo/checkpoints/sepformer/` by default.
+* If your checkpoints are stored elsewhere, update the `checkpoint_path` values in `src/demo/demo.py` before running.
+* After launch, open the local URL printed by Gradio (usually `http://127.0.0.1:7860`).
+
 ## Audio Quality Configuration
 
 - `configs/quality_required.py` is where quality thresholds are defined.
@@ -109,19 +123,30 @@ The best model checkpoint will be saved to `models/finetuned/convtasnet_best.pth
 configs/
   audio_config.py
   quality_required.py
-data/
-  raw/              # original VIVOS data
-  datasets/         # mixed dataset (output)
-logs/
-  analysis_logs/
-  paired_audios/
-models/
-  finetuned/
+.gitignore
+README.md
+report.pdf
 src/
-  analysis/quality_check.py
+  analysis/
+    quality_check.py
   dataset/
-    pair_audio.py
     create_dataset.py
+    pair_audio.py
+  demo/
+    demo.py
+    checkpoints/
+      convtasnet/
+        convtasnet_best.pth
+      sepformer/
+        decoder.ckpt
+        encoder.ckpt
+        hyperparams.yaml
+    models/
+      model_base.py
+      conv_tasnet/
+        model.py
+      sepformer/
+        model.py
   training/
     dataset.py
     loss.py
